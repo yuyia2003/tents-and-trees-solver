@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>树与帐篷 · 算法测试</title>
+    <link rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230d6b58'/%3E%3Cpath d='M8 24 L13 12 L18 24 Z' fill='%23ffffff'/%3E%3Cpath d='M19 24 L23.5 15 L28 24 Z' fill='%23f0c27b'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .test-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .test-table th,
+        .test-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .test-table th {
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--muted);
+            background: #f8faf9;
+        }
+
+        .test-table td.num {
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 1px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .badge.pass {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .badge.fail {
+            background: var(--danger-soft);
+            color: var(--danger);
+        }
+
+        .badge.wait {
+            background: #f1f3f2;
+            color: var(--muted);
+        }
+
+        .summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 18px;
+            padding: 14px 16px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .summary strong {
+            color: var(--ink);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .scroll {
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="page-head">
+        <div class="wrap head-inner">
+            <div class="brand">
+                <span class="brand-mark">
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                        <use href="#i-tree" xlink:href="#i-tree" style="color:#0d6b58" />
+                    </svg>
+                </span>
+                <div>
+                    <h1>算法测试</h1>
+                    <p>跑一遍所有示例题，检查求解结果是否符合规则、答案是否唯一，并记录耗时。</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="wrap" style="padding-top:20px">
+        <section class="panel">
+            <div class="panel-title">
+                <h2>测试结果</h2>
+                <span class="hint" id="status">准备中…</span>
+            </div>
+            <div class="summary">
+                <span>通过 <strong id="passCount">0</strong></span>
+                <span>失败 <strong id="failCount">0</strong></span>
+                <span>总计 <strong id="totalCount">0</strong></span>
+            </div>
+            <div class="scroll">
+                <table class="test-table">
+                    <thead>
+                        <tr>
+                            <th style="width:34%">检查项</th>
+                            <th style="width:12%">结果</th>
+                            <th style="width:12%">耗时</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel help" style="margin-top:14px">
+            <div class="panel-title">
+                <h2>这些检查在查什么</h2>
+                <span class="hint">共 5 类</span>
+            </div>
+            <div class="help-body">
+                <ul>
+                    <li><b>解得出来</b>：求解器返回的不是"失败"，而是完整答案。</li>
+                    <li><b>答案合法</b>：另写一段跟求解器无关的代码，独立核对答案 —— 每行每列帐篷数与提示一致、帐篷之间不上下左右斜着相邻、每顶帐篷都挨着树、树和帐篷能一对一配上（一个帐篷只归一棵树，但帐篷旁边可以同时挨着好几棵树）、没有剩下未定的格子。</li>
+                    <li><b>答案唯一</b>：换一条搜索路径再找第二个解，找不到才算唯一。</li>
+                    <li><b>题目检查</b>：故意填错提示数字，看它能不能给出人话错误提示。</li>
+                    <li><b>性能</b>：每个尺寸的求解耗时，20×20 用来确认扩展之后还够快。</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/core.js"></script>
+    <script src="js/rules.js"></script>
+    <script src="js/demos.js"></script>
+    <script src="js/solver.js"></script>
+    <script src="js/backtrack.js"></script>
+    <script>
+        (function () {
+            'use strict';
+
+            var CELL = TT.CELL;
+            var rowsEl = document.getElementById('rows');
+            var passEl = document.getElementById('passCount');
+            var failEl = document.getElementById('failCount');
+            var totalEl = document.getElementById('totalCount');
+            var statusEl = document.getElementById('status');
+
+            var pass = 0;
+            var fail = 0;
+            var total = 0;
+
+            /* 往表格里加一行，返回这一行的"结果"单元格，方便后面更新 */
+            function addRow(name, detail) {
+                var tr = document.createElement('tr');
+
+                var tdName = document.createElement('td');
+                tdName.textContent = name;
+
+                var tdResult = document.createElement('td');
+                var badge = document.createElement('span');
+                badge.className = 'badge wait';
+                badge.textContent = '进行中';
+                tdResult.appendChild(badge);
+
+                var tdTime = document.createElement('td');
+                tdTime.className = 'num';
+
+                var tdDetail = document.createElement('td');
+                tdDetail.textContent = detail || '';
+
+                tr.appendChild(tdName);
+                tr.appendChild(tdResult);
+                tr.appendChild(tdTime);
+                tr.appendChild(tdDetail);
+                rowsEl.appendChild(tr);
+
+                return { badge: badge, time: tdTime, detail: tdDetail };
+            }
+
+            function settle(row, ok, ms, detail) {
+                total++;
+                if (ok) { pass++; } else { fail++; }
+
+                row.badge.className = 'badge ' + (ok ? 'pass' : 'fail');
+                row.badge.textContent = ok ? '通过' : '失败';
+                row.time.textContent = ms == null ? '—' : ms + ' ms';
+                if (detail) {
+                    row.detail.textContent = detail;
+                }
+
+                passEl.textContent = String(pass);
+                failEl.textContent = String(fail);
+                totalEl.textContent = String(total);
+            }
+
+            /* ------------------------------------------------------------------
+             * 独立核对：这段代码不看求解器的任何中间结果，只看最终棋盘
+             * ------------------------------------------------------------------ */
+
+            function verify(TT_, puzzle, cells) {
+                var problems = [];
+                var rows = puzzle.rows;
+                var cols = puzzle.cols;
+
+                // 1. 不能有未定的格子
+                for (var r = 0; r < rows; r++) {
+                    for (var c = 0; c < cols; c++) {
+                        if (cells[r][c] === CELL.UNKNOWN) {
+                            problems.push('第 ' + (r + 1) + ' 行第 ' + (c + 1) + ' 列还没确定');
+                        }
+                    }
+                }
+
+                // 2. 每行每列的帐篷数量要和提示一致
+                for (var r2 = 0; r2 < rows; r2++) {
+                    var rowTents = 0;
+                    for (var c2 = 0; c2 < cols; c2++) {
+                        if (cells[r2][c2] === CELL.TENT) { rowTents++; }
+                    }
+                    if (rowTents !== puzzle.rowHints[r2]) {
+                        problems.push('第 ' + (r2 + 1) + ' 行有 ' + rowTents + ' 个帐篷，提示是 ' + puzzle.rowHints[r2]);
+                    }
+                }
+                for (var c3 = 0; c3 < cols; c3++) {
+                    var colTents = 0;
+                    for (var r3 = 0; r3 < rows; r3++) {
+                        if (cells[r3][c3] === CELL.TENT) { colTents++; }
+                    }
+                    if (colTents !== puzzle.colHints[c3]) {
+                        problems.push('第 ' + (c3 + 1) + ' 列有 ' + colTents + ' 个帐篷，提示是 ' + puzzle.colHints[c3]);
+                    }
+                }
+
+                // 3. 帐篷之间不能相邻；每个帐篷至少要挨着一棵树
+                var dirs4 = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                var dirs8 = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+                for (var r5 = 0; r5 < rows; r5++) {
+                    for (var c5 = 0; c5 < cols; c5++) {
+                        if (cells[r5][c5] !== CELL.TENT) { continue; }
+
+                        var trees = 0;
+                        for (var d2 = 0; d2 < 4; d2++) {
+                            var rr2 = r5 + dirs4[d2][0];
+                            var cc2 = c5 + dirs4[d2][1];
+                            if (rr2 >= 0 && rr2 < rows && cc2 >= 0 && cc2 < cols && cells[rr2][cc2] === CELL.TREE) {
+                                trees++;
+                            }
+                        }
+                        if (trees === 0) {
+                            problems.push('第 ' + (r5 + 1) + ' 行第 ' + (c5 + 1) + ' 列的帐篷没挨着任何树');
+                        }
+
+                        for (var d3 = 0; d3 < 8; d3++) {
+                            var rr3 = r5 + dirs8[d3][0];
+                            var cc3 = c5 + dirs8[d3][1];
+                            if (rr3 >= 0 && rr3 < rows && cc3 >= 0 && cc3 < cols && cells[rr3][cc3] === CELL.TENT) {
+                                problems.push('第 ' + (r5 + 1) + ' 行第 ' + (c5 + 1) + ' 列的帐篷挨着另一个帐篷');
+                            }
+                        }
+                    }
+                }
+
+                // 4. 树和帐篷必须能"一对一配对"
+                //    —— 每棵树配一顶帐篷，每顶帐篷只属于一棵树；
+                //       但一顶帐篷旁边可以同时挨着好几棵树（那是别人的树）。
+                //    所以这里不做"数了几顶帐篷"的局部判断，而是老老实实做一次配对。
+                var treePos = [];
+                for (var r6 = 0; r6 < rows; r6++) {
+                    for (var c6 = 0; c6 < cols; c6++) {
+                        if (cells[r6][c6] === CELL.TREE) { treePos.push([r6, c6]); }
+                    }
+                }
+
+                var tentPos = [];
+                var tentId = {};
+                for (var r7 = 0; r7 < rows; r7++) {
+                    for (var c7 = 0; c7 < cols; c7++) {
+                        if (cells[r7][c7] === CELL.TENT) {
+                            tentId[r7 + ',' + c7] = tentPos.length;
+                            tentPos.push([r7, c7]);
+                        }
+                    }
+                }
+
+                var options = [];
+                for (var t = 0; t < treePos.length; t++) {
+                    var list = [];
+                    for (var d4 = 0; d4 < 4; d4++) {
+                        var key = (treePos[t][0] + dirs4[d4][0]) + ',' + (treePos[t][1] + dirs4[d4][1]);
+                        if (tentId[key] !== undefined) { list.push(tentId[key]); }
+                    }
+                    options.push(list);
+                }
+
+                var takenBy = [];
+                for (var k = 0; k < tentPos.length; k++) { takenBy.push(-1); }
+
+                function pairUp(index) {
+                    if (index >= treePos.length) { return true; }
+                    var list2 = options[index];
+                    for (var i = 0; i < list2.length; i++) {
+                        var tent = list2[i];
+                        if (takenBy[tent] >= 0) { continue; }
+                        takenBy[tent] = index;
+                        if (pairUp(index + 1)) { return true; }
+                        takenBy[tent] = -1;
+                    }
+                    return false;
+                }
+
+                if (treePos.length !== tentPos.length) {
+                    problems.push('树 ' + treePos.length + ' 棵，帐篷 ' + tentPos.length + ' 个，数量不相等');
+                } else if (!pairUp(0)) {
+                    problems.push('树和帐篷配不成一对一（有树抢不到属于自己的帐篷）');
+                }
+
+                return problems;
+            }
+
+            /* 从示例数据造题目对象 */
+            function puzzleFromDemo(demo) {
+                var trees = [];
+                for (var r = 0; r < demo.rows; r++) {
+                    var line = [];
+                    for (var c = 0; c < demo.cols; c++) {
+                        line.push(demo.trees[r].charAt(c) === 'T');
+                    }
+                    trees.push(line);
+                }
+                return {
+                    rows: demo.rows,
+                    cols: demo.cols,
+                    trees: trees,
+                    rowHints: demo.rowHints.slice(),
+                    colHints: demo.colHints.slice()
+                };
+            }
+
+            /* ------------------------------------------------------------------
+             * 测试用例排队执行：每题拆成"求解"和"唯一性"两行，
+             * 中间用 setTimeout 让浏览器有机会刷新界面
+             * ------------------------------------------------------------------ */
+
+            var queue = [];
+
+            TT.DEMOS.forEach(function (demo) {
+                queue.push(function (next) {
+                    var puzzle = puzzleFromDemo(demo);
+                    var row = addRow(demo.name + ' 求解', demo.level + '难度');
+
+                    var t0 = performance.now();
+                    var result = TT.solve(puzzle, { maxNodes: 30000, timeLimit: 3000 });
+                    var ms = Math.round(performance.now() - t0);
+
+                    if (result.status !== 'solved') {
+                        settle(row, false, ms, result.message || ('返回状态：' + result.status));
+                        next();
+                        return;
+                    }
+
+                    var last = result.steps[result.steps.length - 1];
+                    var problems = verify(TT, puzzle, last.cells);
+
+                    settle(row, problems.length === 0, ms,
+                        problems.length === 0
+                            ? '共 ' + result.steps.length + ' 步，试探 ' + result.stats.guesses + ' 步'
+                            : problems.slice(0, 3).join('；'));
+                    next();
+                });
+
+                queue.push(function (next) {
+                    var puzzle = puzzleFromDemo(demo);
+                    var row = addRow(demo.name + ' 答案唯一', '找第二个解，找不到才算唯一');
+
+                    var t0 = performance.now();
+                    var counted = TT.countSolutions(TT.createState(puzzle), 2, {
+                        maxNodes: 300000,
+                        timeLimit: 6000
+                    });
+                    var ms = Math.round(performance.now() - t0);
+
+                    if (counted.timeout) {
+                        settle(row, false, ms, '搜索超时，没能判断出是否唯一');
+                    } else {
+                        settle(row, counted.count === 1, ms, '找到 ' + counted.count + ' 个解');
+                    }
+                    next();
+                });
+            });
+
+            // ---- 故意填错的题目：必须给出人话提示 ----
+            queue.push(function (next) {
+                var row = addRow('错误题目：行列提示合计不等', '左边合计 3，上面合计 2');
+
+                var puzzle = {
+                    rows: 4, cols: 4,
+                    trees: [[true, false, false, false], [false, false, false, false],
+                    [false, false, false, false], [false, false, false, false]],
+                    rowHints: [1, 1, 1, 0],
+                    colHints: [1, 1, 0, 0]
+                };
+
+                var message = TT.checkPuzzle(puzzle);
+                settle(row, !!message, 0, message || '没有报错');
+                next();
+            });
+
+            queue.push(function (next) {
+                var row = addRow('错误题目：树比帐篷多', '1 棵树，提示合计 0');
+
+                var puzzle = {
+                    rows: 4, cols: 4,
+                    trees: [[true, false, false, false], [false, false, false, false],
+                    [false, false, false, false], [false, false, false, false]],
+                    rowHints: [0, 0, 0, 0],
+                    colHints: [0, 0, 0, 0]
+                };
+
+                var message = TT.checkPuzzle(puzzle);
+                settle(row, !!message, 0, message || '没有报错');
+                next();
+            });
+
+            queue.push(function (next) {
+                var row = addRow('无解题目能被识别', '一棵树四周被提示堵死');
+
+                var puzzle = {
+                    rows: 4, cols: 4,
+                    trees: [[false, true, false, false], [false, false, false, false],
+                    [false, false, false, false], [false, false, false, false]],
+                    rowHints: [0, 0, 0, 0],
+                    colHints: [1, 0, 0, 0]
+                };
+
+                var t0 = performance.now();
+                var result = TT.solve(puzzle, { maxNodes: 20000, timeLimit: 2000 });
+                var ms = Math.round(performance.now() - t0);
+                settle(row, result.status !== 'solved', ms,
+                    (result.message || result.status) + '（这一步提示合计是 1，树只有 1 棵，但树的候选格都被 0 提示堵住了）');
+                next();
+            });
+
+            function runNext() {
+                if (queue.length === 0) {
+                    statusEl.textContent = pass + ' 项通过，' + fail + ' 项失败';
+                    return;
+                }
+                var job = queue.shift();
+                setTimeout(function () {
+                    job(runNext);
+                }, 30);
+            }
+
+            window.addEventListener('load', runNext);
+
+        })();
+    </script>
+</body>
+
+</html>

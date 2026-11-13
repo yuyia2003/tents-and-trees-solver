@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>树与帐篷 · 求解器</title>
+    <meta name="description" content="树与帐篷（Tents and Trees）谜题求解器：支持 4×4 到 20×20，逐步演示推理过程。">
+    <link rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230d6b58'/%3E%3Cpath d='M8 24 L13 12 L18 24 Z' fill='%23ffffff'/%3E%3Cpath d='M19 24 L23.5 15 L28 24 Z' fill='%23f0c27b'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- 图标定义一次，后面用 <use> 复用。
+         tree / tent 两个 symbol 就是棋盘上唯一的两个图形元素。 -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <defs>
+            <symbol id="i-tree" viewBox="0 0 24 24">
+                <path d="M12 2 L16.4 8.2 H13.6 L17.6 14 H14.4 L19.2 19.6 H4.8 L9.6 14 H6.4 L10.4 8.2 H7.6 Z"
+                    fill="currentColor" />
+                <rect x="11" y="19.4" width="2" height="3" rx="0.8" fill="currentColor" />
+            </symbol>
+            <symbol id="i-tent" viewBox="0 0 24 24">
+                <path d="M12 3.4 L21.4 20 H2.6 Z" fill="currentColor" />
+                <path d="M12 3.4 L12 20" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"
+                    fill="none" />
+                <path d="M6.6 20 L12 10.6 L17.4 20" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"
+                    fill="none" opacity="0.7" />
+            </symbol>
+        </defs>
+    </svg>
+
+    <header class="page-head">
+        <div class="wrap head-inner">
+            <div class="brand">
+                <span class="brand-mark">
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                        <use href="#i-tree" xlink:href="#i-tree" style="color:#0d6b58" />
+                    </svg>
+                </span>
+                <div>
+                    <h1>树与帐篷 求解器</h1>
+                    <p>在格子里放树、填数字，然后看它一步步推出来。适用于 4×4 到 20×20。</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="wrap">
+        <!-- ============ 工具栏 ============ -->
+        <section class="panel toolbar" aria-label="操作">
+            <div class="toolbar-row">
+                <span class="field">
+                    宽
+                    <input id="sizeW" type="number" min="4" max="20" step="1" value="6" aria-label="棋盘宽度">
+                </span>
+                <span class="field">
+                    高
+                    <input id="sizeH" type="number" min="4" max="20" step="1" value="6" aria-label="棋盘高度">
+                </span>
+                <button id="btnCreate" class="btn" type="button">生成棋盘</button>
+                <span class="toolbar-sep" aria-hidden="true"></span>
+                <button id="btnSolve" class="btn btn-primary" type="button">开始求解</button>
+                <button id="btnReset" class="btn" type="button"
+                    title="清掉帐篷和草地，保留树和提示数字">重置</button>
+                <label class="switch-field" title="开启后，行/列数字可以填「?」表示不知道，这一行/列的帐篷数量不限">
+                    <input type="checkbox" id="missingToggle">
+                    <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
+                    <span class="switch-label">缺失数字模式</span>
+                </label>
+            </div>
+            <div class="toolbar-row" style="margin-top:12px">
+                <div class="demo-group" id="demoGroup">
+                    <span class="label">示例题目</span>
+                    <!-- 按钮由 render.js 按 demos.js 里的数据自动生成 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ 棋盘 + 步骤 ============ -->
+        <div class="workspace">
+            <section class="panel board-panel" aria-label="棋盘">
+                <div class="panel-title">
+                    <h2>棋盘</h2>
+                    <span class="hint" id="boardModeHint">编辑中 · 点格子切换树</span>
+                </div>
+
+                <div class="board-scroll">
+                    <div id="board" class="board"></div>
+                </div>
+
+                <div class="board-note" id="boardNote"></div>
+
+                <div class="legend">
+                    <span class="legend-item">
+                        <span class="legend-swatch" style="background:#fff">
+                            <svg viewBox="0 0 24 24" style="color:#2f6d53"><use href="#i-tree"
+                                    xlink:href="#i-tree" /></svg>
+                        </span>树
+                    </span>
+                    <span class="legend-item">
+                        <span class="legend-swatch" style="background:#fbf0dc">
+                            <svg viewBox="0 0 24 24" style="color:#b5711f"><use href="#i-tent"
+                                    xlink:href="#i-tent" /></svg>
+                        </span>帐篷
+                    </span>
+                    <span class="legend-item">
+                        <span class="legend-swatch" style="background:#eef3ef"></span>草地
+                    </span>
+                    <span class="legend-item">
+                        <span class="legend-swatch" style="background:#fff;border:2px solid #0d6b58"></span>本步改动
+                    </span>
+                </div>
+
+                <div class="board-foot">
+                    <button id="btnHelp" class="btn btn-ghost" type="button" aria-expanded="true"
+                        aria-controls="helpPanel">规则说明</button>
+                </div>
+            </section>
+
+            <aside class="panel steps-panel" aria-label="推理步骤">
+                <div class="step-head">
+                    <h2>推理步骤</h2>
+                    <span class="counter" id="stepCounter">尚未求解</span>
+                </div>
+
+                <div class="step-card" id="stepCard">
+                    <span class="tag" id="stepTag">准备</span>
+                    <h3 id="stepTitle">先摆好树，再点"开始求解"</h3>
+                    <p id="stepNote">左边每行的数字表示这一行要放几个帐篷，上面每列同理。可以先用示例题目试一下。</p>
+                </div>
+
+                <div class="step-controls">
+                    <button id="btnPrev" class="btn" type="button">上一步</button>
+                    <button id="btnPlay" class="btn" type="button">播放</button>
+                    <button id="btnNext" class="btn" type="button">下一步</button>
+                </div>
+
+                <div class="slider-wrap">
+                    <div class="slider-label">
+                        <span id="sliderFrom">第 1 步</span>
+                        <span id="sliderTo">—</span>
+                    </div>
+                    <input id="stepSlider" class="slider" type="range" min="1" max="1" value="1"
+                        aria-label="选择步骤">
+                </div>
+
+                <ol class="step-list" id="stepList"></ol>
+            </aside>
+        </div>
+
+        <!-- ============ 截图识别 ============ -->
+        <section class="panel shot-panel" aria-label="截图识别">
+            <div class="panel-title">
+                <h2>截图识别</h2>
+                <span class="hint">把游戏截图粘贴进来，自动生成棋盘；识别不准可在棋盘上直接改</span>
+            </div>
+            <div class="shot-body">
+                <div class="shot-actions">
+                    <button id="btnPickShot" class="btn" type="button">选择截图文件</button>
+                    <button id="btnPasteShot" class="btn" type="button">从剪贴板粘贴</button>
+                    <input type="file" id="shotFile" accept="image/*" hidden>
+                </div>
+                <img id="shotPreview" class="shot-preview" alt="截图预览" hidden>
+                <div class="shot-status" id="shotStatus">
+                    支持 4×4 到 20×20 的同风格截图；树位或数字识别不准时，载入后点格子改树、点数字改提示即可。
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ 棋盘代码（导出 / 还原） ============ -->
+        <section class="panel code-panel" aria-label="棋盘代码">
+            <div class="panel-title">
+                <h2>棋盘代码</h2>
+                <span class="hint">复制这段代码，下次粘贴即可还原这张棋盘</span>
+            </div>
+            <div class="code-body">
+                <textarea id="codeBox" class="code-box" rows="3"
+                    placeholder="点「生成代码」把当前棋盘写成一段代码；把别人给的代码粘进来，再点「粘贴还原」。"></textarea>
+                <div class="code-actions">
+                    <button id="btnGenCode" class="btn" type="button">生成代码</button>
+                    <button id="btnCopyCode" class="btn" type="button">复制代码</button>
+                    <button id="btnPasteCode" class="btn" type="button">粘贴还原</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ 规则说明 ============ -->
+        <section class="panel help" id="helpPanel" aria-label="规则说明">
+            <div class="panel-title">
+                <h2>这是个什么游戏</h2>
+                <span class="hint">树与帐篷（Tents and Trees）</span>
+            </div>
+            <div class="help-body">
+                <div>
+                    <h3 style="font-size:14px;margin-bottom:8px">规则一共四条</h3>
+                    <ul>
+                        <li>树和帐篷<b>一对一配对</b>：每棵树配一顶帐篷（配对的那顶就在它上下左右），每顶帐篷只属于一棵树。</li>
+                        <li>但帐篷旁边<b>可以同时挨着好几棵树</b> —— 多出来的那几棵只是"蹭在旁边"，它们各自还有自己配对的帐篷。</li>
+                        <li>帐篷之间不能相邻，<b>斜着相邻也不行</b>。</li>
+                        <li>左边每行的数字表示这一行有几顶帐篷，上面每列的数字表示这一列有几顶帐篷，剩下的格子都是草地。</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="font-size:14px;margin-bottom:8px">怎么用这个页面</h3>
+                    <ul>
+                        <li>点「生成棋盘」，按题目尺寸开一张空盘。</li>
+                        <li>点格子放树，再点一次取消；所有树摆好后填提示数字。</li>
+                        <li>点「开始求解」，下面的步骤面板会说明每一步用了什么规则、改了哪几格。</li>
+                        <li>推理推不动时，求解器会先"试探"一步，试探的步骤会标成橙色。</li>
+                        <li>打开「缺失数字模式」后，行/列提示可以填「?」表示不知道，这一行/列的帐篷数量不限；其余规则不变。</li>
+                        <li>「棋盘代码」会把当前树、提示和已摆的格子写成一段代码，复制保存；下次粘贴代码就能还原这张棋盘。</li>
+                        <li>「截图识别」可以直接导入游戏截图：选文件或粘贴剪贴板图片，自动认出树和提示数字；识别不准时，载入后点格子、点数字直接改。</li>
+                    </ul>
+                </div>
+                <p class="help-note">
+                    求解器先用人类常用的推理规则一步步推进；如果所有规则都推不动，再启动回溯搜索（挑候选最少的树去假设，走不通就退回来换下一个）。
+                    因此再难的题也能给出答案，只是会有几步是"试探"出来的。
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <!-- 模块顺序就是依赖顺序：先有数据，再有规则，最后才是界面 -->
+    <script src="js/core.js"></script>
+    <script src="js/rules.js"></script>
+    <script src="js/demos.js"></script>
+    <script src="js/solver.js"></script>
+    <script src="js/backtrack.js"></script>
+    <script src="js/recognize.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
