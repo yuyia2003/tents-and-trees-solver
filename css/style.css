@@ -941,3 +941,60 @@ main {
         order: 2;
     }
 }
+
+/* ------------------------------------------------------------ 版本号与语言切换 */
+
+.version {
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 1px 7px;
+    vertical-align: middle;
+}
+
+.lang-switch {
+    display: flex;
+    gap: 8px;
+    flex: none;
+    align-items: center;
+}
+
+.lang-btn {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--panel);
+    cursor: pointer;
+}
+
+.lang-btn.is-active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.lang-btn svg {
+    display: block;
+    border-radius: 2px;
+}
+
+.shot-game {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.shot-game a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.shot-game a:hover {
+    text-decoration: underline;
+}

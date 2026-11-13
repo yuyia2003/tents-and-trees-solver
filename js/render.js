@@ -117,7 +117,7 @@
             input.max = String(puzzle.rows);
             input.step = '1';
             input.value = hintText(puzzle.colHints[c]);
-            input.setAttribute('aria-label', '第 ' + (c + 1) + ' 列的帐篷数量');
+            input.setAttribute('aria-label', TT.i18n.t('aria.colHint', { i: c + 1 }));
             bindHintInput(input, 'col', c);
             cell.appendChild(input);
             board.hintInputs.col.push({ cell: cell, input: input });
@@ -133,7 +133,7 @@
             input.max = String(puzzle.cols);
             input.step = '1';
             input.value = hintText(puzzle.rowHints[r]);
-            input.setAttribute('aria-label', '第 ' + (r + 1) + ' 行的帐篷数量');
+            input.setAttribute('aria-label', TT.i18n.t('aria.rowHint', { i: r + 1 }));
             bindHintInput(input, 'row', r);
             hintCell.appendChild(input);
             board.hintInputs.row.push({ cell: hintCell, input: input });
@@ -146,7 +146,7 @@
                 button.type = 'button';
                 button.dataset.row = String(r);
                 button.dataset.col = String(c);
-                button.setAttribute('aria-label', '第 ' + (r + 1) + ' 行第 ' + (c + 1) + ' 列');
+                button.setAttribute('aria-label', TT.i18n.t('aria.cell', { r: r + 1, c: c + 1 }));
 
                 const icon = el('span', 'icon');
                 button.appendChild(icon);
@@ -368,15 +368,23 @@
      * 5. 示例按钮
      * ------------------------------------------------------------------ */
 
+    const LEVEL_KEY = {
+        '入门': 'demo.level.beginner',
+        '练习': 'demo.level.practice',
+        '挑战': 'demo.level.challenge',
+        '高难': 'demo.level.hard'
+    };
+
     TT.render.buildDemoButtons = function (container, demos, onPick) {
-        container.innerHTML = '<span class="label">示例题目</span>';
+        container.innerHTML = '<span class="label">' + TT.i18n.t('app.demos') + '</span>';
 
         for (let i = 0; i < demos.length; i++) {
             const demo = demos[i];
             const button = el('button', 'demo-btn');
             button.type = 'button';
             button.textContent = demo.name;
-            button.title = demo.level + '难度 · 点一下载入这道题';
+            const levelKey = LEVEL_KEY[demo.level] || 'demo.level.challenge';
+            button.title = TT.i18n.t('demo.loadTitle', { level: TT.i18n.t(levelKey) });
             button.addEventListener('click', function () {
                 onPick(demo);
             });
@@ -388,19 +396,24 @@
      * 6. 步骤面板
      * ------------------------------------------------------------------ */
 
-    const KIND_NAME = {
-        initial: '初始',
-        deduce: '推理',
-        guess: '试探',
-        done: '完成'
-    };
-
     const KIND_CLASS = {
         initial: '',
         deduce: '',
         guess: 'is-guess',
         done: 'is-done'
     };
+
+    function kindName(kind) {
+        return TT.i18n.t('kind.' + kind) || TT.i18n.t('kind.deduce');
+    }
+
+    function resolveTitle(step) {
+        return step.titleKey ? TT.i18n.t(step.titleKey) : (step.title || '');
+    }
+
+    function resolveNote(step) {
+        return step.noteKey ? TT.i18n.t(step.noteKey, step.noteVars) : (step.note || '');
+    }
 
     /**
      * 显示某一步：更新卡片、滑块、列表高亮
@@ -412,22 +425,20 @@
         const step = steps[index];
 
         document.getElementById('stepCounter').textContent =
-            '第 ' + (index + 1) + ' 步 / 共 ' + steps.length + ' 步';
+            TT.i18n.t('steps.counter', { i: index + 1, n: steps.length });
 
         const tag = document.getElementById('stepTag');
-        tag.textContent = KIND_NAME[step.kind] || '推理';
+        tag.textContent = kindName(step.kind);
         tag.className = 'tag ' + (KIND_CLASS[step.kind] || '');
 
-        document.getElementById('stepTitle').textContent =
-            step.kind === 'initial' || step.kind === 'done' ? step.title : step.title;
-
-        document.getElementById('stepNote').textContent = step.note || '';
+        document.getElementById('stepTitle').textContent = resolveTitle(step);
+        document.getElementById('stepNote').textContent = resolveNote(step);
 
         const slider = document.getElementById('stepSlider');
         slider.max = String(steps.length);
         slider.value = String(index + 1);
-        document.getElementById('sliderFrom').textContent = '第 1 步';
-        document.getElementById('sliderTo').textContent = '共 ' + steps.length + ' 步';
+        document.getElementById('sliderFrom').textContent = TT.i18n.t('steps.stepFrom');
+        document.getElementById('sliderTo').textContent = TT.i18n.t('steps.stepTo', { n: steps.length });
 
         // 列表高亮：只让列表自己滚动，不要带着整个页面跳
         for (let i = 0; i < stepView.items.length; i++) {
@@ -463,10 +474,10 @@
             no.textContent = String(i + 1);
 
             const title = el('span', 'title');
-            title.textContent = step.kind === 'deduce' ? step.title : step.title;
+            title.textContent = resolveTitle(step);
 
             const kind = el('span', 'kind');
-            kind.textContent = KIND_NAME[step.kind] || '';
+            kind.textContent = kindName(step.kind);
 
             item.appendChild(no);
             item.appendChild(title);

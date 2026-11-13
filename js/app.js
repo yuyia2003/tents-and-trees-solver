@@ -109,7 +109,7 @@
         });
         TT.render.updateCells(app.editCells, []);
         TT.render.setEditable(true);
-        TT.render.setModeHint('编辑中 · 点格子切换树');
+        TT.render.setModeHint(TT.i18n.t('mode.edit'));
 
         resetStepPanel();
         refreshNote();
@@ -122,7 +122,7 @@
 
     function onCellClick(r, c) {
         if (app.mode !== 'edit') {
-            TT.render.toast('现在是查看模式，先点「重置」回到编辑');
+            TT.render.toast(TT.i18n.t('toast.viewMode'));
             return;
         }
 
@@ -177,13 +177,13 @@
             $('sizeW').value = String(cols);
             $('sizeH').value = String(rows);
             startPuzzle(emptyPuzzle(rows, cols, app.missingMode));
-            TT.render.toast('已生成 ' + rows + '×' + cols + ' 的空棋盘');
+            TT.render.toast(TT.i18n.t('toast.boardCreated', { r: rows, c: cols }));
         });
 
         $('btnSolve').addEventListener('click', solve);
         $('btnReset').addEventListener('click', function () {
             startPuzzle(app.puzzle);
-            TT.render.toast('已重置：树和数字都留着，帐篷清掉了');
+            TT.render.toast(TT.i18n.t('toast.resetDone'));
         });
 
         // 缺失数字模式开关
@@ -194,7 +194,7 @@
         // 棋盘代码：生成 / 复制 / 粘贴还原
         $('btnGenCode').addEventListener('click', function () {
             syncCodeBox();
-            TT.render.toast('已按当前棋盘生成代码');
+            TT.render.toast(TT.i18n.t('toast.codeGenerated'));
         });
         $('btnCopyCode').addEventListener('click', copyCode);
         $('btnPasteCode').addEventListener('click', importCode);
@@ -253,7 +253,7 @@
 
     function solve() {
         if (app.mode !== 'edit') {
-            TT.render.toast('已经在查看结果了，改题目请先点「清空棋盘」');
+            TT.render.toast(TT.i18n.t('toast.alreadyView'));
             return;
         }
 
@@ -271,14 +271,14 @@
 
         const button = $('btnSolve');
         button.disabled = true;
-        button.textContent = '求解中…';
+        button.textContent = TT.i18n.t('solving');
 
         let result;
         try {
             result = TT.solve(app.puzzle, { maxNodes: 30000, timeLimit: 3000 });
         } finally {
             button.disabled = false;
-            button.textContent = '开始求解';
+            button.textContent = TT.i18n.t('app.solve');
         }
 
         app.solution = result;
@@ -290,19 +290,21 @@
         });
 
         if (result.status === 'solved') {
-            TT.render.setModeHint('查看中 · 可翻看每一步');
+            TT.render.setModeHint(TT.i18n.t('mode.view'));
             goStep(result.steps.length - 1);
-            TT.render.toast('解出来了：共 ' + result.steps.length + ' 步，其中试探 ' +
-                result.stats.guesses + ' 步');
+            TT.render.toast(TT.i18n.t('toast.solved', {
+                n: result.steps.length,
+                g: result.stats.guesses
+            }));
         } else {
             goStep(result.steps.length - 1);
-            TT.render.setModeHint('查看中 · 题目有问题');
+            TT.render.setModeHint(TT.i18n.t('mode.viewBad'));
             // 把原因直接写进步骤卡片，比只看右下角的小提示清楚
-            $('stepTag').textContent = '问题';
+            $('stepTag').textContent = TT.i18n.t('step.problem');
             $('stepTag').className = 'tag is-error';
-            $('stepTitle').textContent = '这次没能解出来';
-            $('stepNote').textContent = result.message || '没解出来。';
-            TT.render.toast(result.message || '没解出来', true);
+            $('stepTitle').textContent = TT.i18n.t('step.failedTitle');
+            $('stepNote').textContent = result.message || TT.i18n.t('step.failedNote');
+            TT.render.toast(result.message || TT.i18n.t('step.failedNote'), true);
         }
         refreshNote();
     }
@@ -343,7 +345,7 @@
             goStep(0);
         }
 
-        $('btnPlay').textContent = '暂停';
+        $('btnPlay').textContent = TT.i18n.t('steps.pause');
         app.timer = setInterval(function () {
             if (app.stepIndex >= app.solution.steps.length - 1) {
                 stopPlaying();
@@ -358,16 +360,15 @@
             clearInterval(app.timer);
             app.timer = null;
         }
-        $('btnPlay').textContent = '播放';
+        $('btnPlay').textContent = TT.i18n.t('steps.play');
     }
 
     function resetStepPanel() {
-        $('stepCounter').textContent = '尚未求解';
-        $('stepTag').textContent = '准备';
+        $('stepCounter').textContent = TT.i18n.t('steps.unsolved');
+        $('stepTag').textContent = TT.i18n.t('steps.ready');
         $('stepTag').className = 'tag';
-        $('stepTitle').textContent = '先摆好树，再点「开始求解」';
-        $('stepNote').textContent = '左边每行的数字表示这一行要放几个帐篷，上面每列同理。' +
-            '可以先用示例题目试一下。';
+        $('stepTitle').textContent = TT.i18n.t('steps.readyTitle');
+        $('stepNote').textContent = TT.i18n.t('steps.readyNote');
 
         $('stepList').innerHTML = '';
         const slider = $('stepSlider');
@@ -375,7 +376,7 @@
         slider.max = '1';
         slider.value = '1';
         slider.disabled = true;
-        $('sliderFrom').textContent = '第 1 步';
+        $('sliderFrom').textContent = TT.i18n.t('steps.stepFrom');
         $('sliderTo').textContent = '—';
 
         $('btnPrev').disabled = true;
@@ -418,26 +419,29 @@
         }
 
         const hintText = missingCount > 0
-            ? '已知提示合计 ' + rowSum + '（' + missingCount + ' 项未知）'
-            : '提示合计 ' + rowSum;
+            ? TT.i18n.t('note.hintSumUnknown', { n: rowSum, m: missingCount })
+            : TT.i18n.t('note.hintSum', { n: rowSum });
 
         const parts = [
-            { text: '树 ' + treeCount + ' 棵' },
+            { text: TT.i18n.t('note.trees', { n: treeCount }) },
             { text: hintText }
         ];
 
         // 有未知提示时，合计本来就没法和树数对上，不提示"还没对上"
         if (missingCount === 0) {
             if (rowSum !== colSum) {
-                parts.push({ text: '行列提示合计不一致', className: 'alert' });
+                parts.push({ text: TT.i18n.t('note.mismatchRowCol'), className: 'alert' });
             } else if (treeCount !== rowSum) {
-                parts.push({ text: '树的数量和提示还没对上' });
+                parts.push({ text: TT.i18n.t('note.treesHintsMismatch') });
             }
         }
 
         if (app.solution && app.solution.status === 'solved') {
             parts.push({
-                text: '共 ' + app.solution.steps.length + ' 步，试探 ' + app.solution.stats.guesses + ' 步',
+                text: TT.i18n.t('note.solvedSteps', {
+                    n: app.solution.steps.length,
+                    g: app.solution.stats.guesses
+                }),
                 className: 'ok'
             });
         }
@@ -512,19 +516,19 @@
     function decodeSnapshot(code) {
         const b64 = String(code || '').trim().replace(/-/g, '+').replace(/_/g, '/');
         if (!b64) {
-            throw new Error('代码是空的');
+            throw new Error(TT.i18n.t('code.empty'));
         }
         let json;
         try {
             json = decodeURIComponent(atob(b64));
         } catch (e) {
-            throw new Error('代码格式不正确，无法解码');
+            throw new Error(TT.i18n.t('code.badFormat'));
         }
         let snap;
         try {
             snap = JSON.parse(json);
         } catch (e) {
-            throw new Error('代码内容不是有效的棋盘数据');
+            throw new Error(TT.i18n.t('code.invalid'));
         }
         validateSnapshot(snap);
         return snap;
@@ -539,56 +543,58 @@
 
     function validateSnapshot(snap) {
         if (!snap || typeof snap !== 'object') {
-            throw new Error('代码不是有效的棋盘数据');
+            throw new Error(TT.i18n.t('code.notObject'));
         }
         if (snap.v !== 1) {
-            throw new Error('代码版本不认识，可能不是本程序导出的');
+            throw new Error(TT.i18n.t('code.unknownVersion'));
         }
         const rows = snap.rows;
         const cols = snap.cols;
         if (!Number.isInteger(rows) || !Number.isInteger(cols) ||
             rows < TT.MIN_SIZE || rows > TT.MAX_SIZE ||
             cols < TT.MIN_SIZE || cols > TT.MAX_SIZE) {
-            throw new Error('代码里的尺寸不在 ' + TT.MIN_SIZE + '×' + TT.MIN_SIZE +
-                ' 到 ' + TT.MAX_SIZE + '×' + TT.MAX_SIZE + ' 之间');
+            throw new Error(TT.i18n.t('code.badSize', {
+                min: TT.MIN_SIZE,
+                max: TT.MAX_SIZE
+            }));
         }
         if (!Array.isArray(snap.trees) || snap.trees.length !== rows) {
-            throw new Error('代码里的树位置不完整');
+            throw new Error(TT.i18n.t('code.treesIncomplete'));
         }
         if (!Array.isArray(snap.rowHints) || snap.rowHints.length !== rows) {
-            throw new Error('代码里的行提示不完整');
+            throw new Error(TT.i18n.t('code.rowHintsIncomplete'));
         }
         if (!Array.isArray(snap.colHints) || snap.colHints.length !== cols) {
-            throw new Error('代码里的列提示不完整');
+            throw new Error(TT.i18n.t('code.colHintsIncomplete'));
         }
         if (!Array.isArray(snap.cells) || snap.cells.length !== rows) {
-            throw new Error('代码里的格子不完整');
+            throw new Error(TT.i18n.t('code.cellsIncomplete'));
         }
         for (let r = 0; r < rows; r++) {
             if (!Array.isArray(snap.trees[r]) || snap.trees[r].length !== cols) {
-                throw new Error('树位置行列对不上');
+                throw new Error(TT.i18n.t('code.treesDim'));
             }
             if (!Array.isArray(snap.cells[r]) || snap.cells[r].length !== cols) {
-                throw new Error('格子行列对不上');
+                throw new Error(TT.i18n.t('code.cellsDim'));
             }
             for (let c = 0; c < cols; c++) {
                 const cell = snap.cells[r][c];
                 if (!Number.isInteger(cell) || cell < 0 || cell > 3) {
-                    throw new Error('格子状态不认识');
+                    throw new Error(TT.i18n.t('code.unknownCell'));
                 }
                 if (snap.trees[r][c] && cell !== CELL.TREE) {
-                    throw new Error('代码里树和格子标记不一致');
+                    throw new Error(TT.i18n.t('code.treeCellMismatch'));
                 }
             }
         }
         for (let r = 0; r < rows; r++) {
             if (!isValidHint(snap.rowHints[r], cols)) {
-                throw new Error('行提示数字越界');
+                throw new Error(TT.i18n.t('code.rowHintRange'));
             }
         }
         for (let c = 0; c < cols; c++) {
             if (!isValidHint(snap.colHints[c], rows)) {
-                throw new Error('列提示数字越界');
+                throw new Error(TT.i18n.t('code.colHintRange'));
             }
         }
     }
@@ -602,7 +608,7 @@
         const box = $('codeBox');
         const text = box.value;
         if (!text) {
-            TT.render.toast('还没有可复制的代码', true);
+            TT.render.toast(TT.i18n.t('code.nothingToCopy'), true);
             return;
         }
         function fallback() {
@@ -614,11 +620,11 @@
             } catch (e) {
                 ok = false;
             }
-            TT.render.toast(ok ? '代码已复制' : '复制失败，请手动选中复制', !ok);
+            TT.render.toast(ok ? TT.i18n.t('code.copied') : TT.i18n.t('code.copyFailed'), !ok);
         }
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text).then(function () {
-                TT.render.toast('代码已复制，下次粘贴即可还原');
+                TT.render.toast(TT.i18n.t('code.copiedRestore'));
             }).catch(fallback);
         } else {
             fallback();
@@ -642,7 +648,7 @@
             try {
                 snap = decodeSnapshot($('codeBox').value);
             } catch (err) {
-                TT.render.toast('还原失败：' + err.message, true);
+                TT.render.toast(TT.i18n.t('code.restoreFailed', { msg: err.message }), true);
                 return;
             }
             const puzzle = {
@@ -660,7 +666,7 @@
             TT.render.updateHints(app.editCells);
             refreshNote();
             syncCodeBox();
-            TT.render.toast('已按代码还原棋盘：' + snap.rows + '×' + snap.cols);
+            TT.render.toast(TT.i18n.t('code.restored', { r: snap.rows, c: snap.cols }));
         }
     }
 
@@ -708,11 +714,11 @@
         puzzle.rowHints.forEach(function (h) { if (h === null) unknown++; });
         puzzle.colHints.forEach(function (h) { if (h === null) unknown++; });
 
-        let msg = '识别完成：' + puzzle.rows + '×' + puzzle.cols + '，树 ' + treeCount + ' 棵';
+        let msg = TT.i18n.t('shot.done', { r: puzzle.rows, c: puzzle.cols, t: treeCount });
         if (unknown > 0) {
-            msg += '，' + unknown + ' 项数字没把握（显示为 ?）';
+            msg += TT.i18n.t('shot.doneUnknown', { u: unknown });
         }
-        msg += '；如有出入，点格子改树、点数字改提示即可';
+        msg += TT.i18n.t('shot.doneTail');
         TT.render.toast(msg);
         setShotStatus(msg);
     }
@@ -722,7 +728,7 @@
             return;
         }
         if (file.type && file.type.indexOf('image/') !== 0) {
-            TT.render.toast('请选择图片文件', true);
+            TT.render.toast(TT.i18n.t('shot.notImage'), true);
             return;
         }
         const url = URL.createObjectURL(file);
@@ -733,7 +739,7 @@
             URL.revokeObjectURL(url);
         };
         img.onerror = function () {
-            TT.render.toast('图片打不开，请换一张试试', true);
+            TT.render.toast(TT.i18n.t('shot.badImage'), true);
             URL.revokeObjectURL(url);
         };
         img.src = url;
@@ -741,7 +747,7 @@
 
     function pasteClipboardShot() {
         if (!navigator.clipboard || !navigator.clipboard.read) {
-            TT.render.toast('当前浏览器不支持读取剪贴板，请改用「选择截图文件」', true);
+            TT.render.toast(TT.i18n.t('shot.noClipboard'), true);
             return;
         }
         navigator.clipboard.read().then(function (items) {
@@ -756,9 +762,9 @@
                     return;
                 }
             }
-            TT.render.toast('剪贴板里没有图片，请先复制游戏截图', true);
+            TT.render.toast(TT.i18n.t('shot.clipboardNoImage'), true);
         }).catch(function () {
-            TT.render.toast('读取剪贴板失败，请先复制截图，或改用选择文件', true);
+            TT.render.toast(TT.i18n.t('shot.clipboardFailed'), true);
         });
     }
 
@@ -796,13 +802,75 @@
     }
 
     /* ------------------------------------------------------------------
+     * 6.8 语言切换
+     * ------------------------------------------------------------------ */
+
+    function refreshLanguage() {
+        TT.i18n.applyStatic();
+
+        // 示例按钮的 title 是动态文案，重建一次
+        TT.render.buildDemoButtons($('demoGroup'), TT.DEMOS, function (demo) {
+            startPuzzle(puzzleFromDemo(demo));
+            TT.render.toast(TT.i18n.t('toast.demoLoaded', { name: demo.name }));
+        });
+
+        // 棋盘输入框的 aria-label 在建盘时生成，重建一次让它跟随语言
+        TT.render.buildBoard($('board'), app.puzzle, {
+            onCellClick: onCellClick,
+            onHintChange: onHintChange
+        });
+        TT.render.updateCells(app.editCells, []);
+        TT.render.setEditable(app.mode === 'edit');
+        const hintKey = app.mode === 'edit'
+            ? 'mode.edit'
+            : (app.solution && app.solution.status !== 'solved' ? 'mode.viewBad' : 'mode.view');
+        TT.render.setModeHint(TT.i18n.t(hintKey));
+
+        // 状态条、步骤面板、截图提示按当前语言刷新
+        refreshNote();
+        setShotStatus(TT.i18n.t('shot.status'));
+
+        if (app.solution) {
+            goStep(app.stepIndex);
+        } else {
+            resetStepPanel();
+        }
+
+        $('btnPlay').textContent = app.timer
+            ? TT.i18n.t('steps.pause')
+            : TT.i18n.t('steps.play');
+        $('btnSolve').textContent = TT.i18n.t('app.solve');
+
+        const zhBtn = $('langZh');
+        const enBtn = $('langEn');
+        if (zhBtn && enBtn) {
+            const isZh = TT.i18n.getLang() === 'zh';
+            zhBtn.classList.toggle('is-active', isZh);
+            enBtn.classList.toggle('is-active', !isZh);
+        }
+    }
+
+    function bindLanguage() {
+        $('langZh').addEventListener('click', function () {
+            TT.i18n.setLang('zh');
+            refreshLanguage();
+        });
+        $('langEn').addEventListener('click', function () {
+            TT.i18n.setLang('en');
+            refreshLanguage();
+        });
+    }
+
+    /* ------------------------------------------------------------------
      * 7. 启动
      * ------------------------------------------------------------------ */
 
     function init() {
+        TT.i18n.applyStatic();
+        bindLanguage();
         TT.render.buildDemoButtons($('demoGroup'), TT.DEMOS, function (demo) {
             startPuzzle(puzzleFromDemo(demo));
-            TT.render.toast('已载入 ' + demo.name + ' 示例');
+            TT.render.toast(TT.i18n.t('toast.demoLoaded', { name: demo.name }));
         });
 
         bindToolbar();

@@ -13,7 +13,7 @@ const vm = require('vm');
 const JS_DIR = path.join(__dirname, '..', 'js');
 
 // 注意顺序必须和页面里的 <script> 顺序一致
-const FILES = ['core.js', 'rules.js', 'solver.js', 'backtrack.js', 'demos.js'];
+const FILES = ['core.js', 'i18n.js', 'rules.js', 'solver.js', 'backtrack.js', 'demos.js'];
 
 function loadTT() {
     const sandbox = { window: {}, console: console, Date: Date, Math: Math, JSON: JSON };

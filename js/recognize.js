@@ -358,24 +358,24 @@
     TT.recognize = TT.recognize || {};
     TT.recognize.fromImage = function (image) {
         if (!image) {
-            throw new Error('没有读到图片');
+            throw new Error(TT.i18n.t('recognize.noImage'));
         }
         const W = image.naturalWidth || image.width;
         const H = image.naturalHeight || image.height;
         if (!W || !H) {
-            throw new Error('图片还没加载完，请再试一次');
+            throw new Error(TT.i18n.t('recognize.loading'));
         }
 
         let data;
         try {
             data = canvasFromImage(image);
         } catch (e) {
-            throw new Error('图片读取失败，可能是格式不支持');
+            throw new Error(TT.i18n.t('recognize.readFail'));
         }
 
         const geo = findGeometry(data, W, H);
         if (!geo) {
-            throw new Error('没在图片里找到棋盘，请截完整的游戏画面（含格子和四周数字）');
+            throw new Error(TT.i18n.t('recognize.noBoard'));
         }
 
         // ---- 逐格判断树 ----

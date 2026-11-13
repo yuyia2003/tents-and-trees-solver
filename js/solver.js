@@ -32,17 +32,19 @@
                 continue;
             }
             if (state.rowLeft[r] < 0) {
-                return '第 ' + (r + 1) + ' 行的帐篷数量超出了提示数字。';
+                return TT.i18n.t('err.rowOverflow', { r: r + 1 });
             }
             if (state.rowLeft[r] > TT.unknownInRow(state, r)) {
-                return '第 ' + (r + 1) + ' 行只剩 ' + TT.unknownInRow(state, r) +
-                    ' 个空格，却还差 ' + state.rowLeft[r] + ' 个帐篷，放不下。';
+                return TT.i18n.t('err.rowNoSpace', {
+                    r: r + 1,
+                    n: TT.unknownInRow(state, r),
+                    need: state.rowLeft[r]
+                });
             }
             // 把"帐篷不能相邻"也算进去，一行到底还能放几个
             const room = TT.lineMaxTents(state, true, r, mask);
             if (state.rowLeft[r] > room) {
-                return '第 ' + (r + 1) + ' 行还差 ' + state.rowLeft[r] +
-                    ' 个帐篷，但按"帐篷不能相邻"算，这一行最多还能放 ' + room + ' 个。';
+                return TT.i18n.t('err.rowRoom', { r: r + 1, need: state.rowLeft[r], room: room });
             }
         }
 
@@ -51,16 +53,18 @@
                 continue;
             }
             if (state.colLeft[c] < 0) {
-                return '第 ' + (c + 1) + ' 列的帐篷数量超出了提示数字。';
+                return TT.i18n.t('err.colOverflow', { c: c + 1 });
             }
             if (state.colLeft[c] > TT.unknownInCol(state, c)) {
-                return '第 ' + (c + 1) + ' 列只剩 ' + TT.unknownInCol(state, c) +
-                    ' 个空格，却还差 ' + state.colLeft[c] + ' 个帐篷，放不下。';
+                return TT.i18n.t('err.colNoSpace', {
+                    c: c + 1,
+                    n: TT.unknownInCol(state, c),
+                    need: state.colLeft[c]
+                });
             }
             const room = TT.lineMaxTents(state, false, c, mask);
             if (state.colLeft[c] > room) {
-                return '第 ' + (c + 1) + ' 列还差 ' + state.colLeft[c] +
-                    ' 个帐篷，但按"帐篷不能相邻"算，这一列最多还能放 ' + room + ' 个。';
+                return TT.i18n.t('err.colRoom', { c: c + 1, need: state.colLeft[c], room: room });
             }
         }
 
@@ -72,12 +76,12 @@
                     continue;
                 }
                 if (TT.treeCountAround(state, r, c) === 0) {
-                    return TT.pos(r, c) + '的帐篷四周没有树，帐篷必须挨着它配对的那棵树。';
+                    return TT.i18n.t('err.tentNoTree', { pos: TT.pos(r, c) });
                 }
 
                 // ---- 3. 帐篷之间不能相邻 ----
                 if (TT.hasTentAround8(state, r, c)) {
-                    return TT.pos(r, c) + '的帐篷挨着别的帐篷，两个帐篷不能相邻（斜着也不行）。';
+                    return TT.i18n.t('err.tentTouch', { pos: TT.pos(r, c) });
                 }
             }
         }
@@ -89,7 +93,7 @@
                     continue;
                 }
                 if (TT.possibilities(state, r, c, mask).length === 0) {
-                    return TT.pos(r, c) + '的树已经没有任何地方可以配帐篷了。';
+                    return TT.i18n.t('err.treeNoSpot', { pos: TT.pos(r, c) });
                 }
             }
         }
@@ -99,8 +103,10 @@
         // 比如三棵树都只能抢同一顶帐篷，局部看每棵都没问题，整体却配不出来。
         const match = TT.matchAllTrees(state, { mask: mask });
         if (!match.ok) {
-            return '局面已经配不成对了：' + TT.pos(match.unmatched[0][0], match.unmatched[0][1]) +
-                '的树抢不到属于自己的帐篷（还有 ' + match.unmatched.length + ' 棵树同样没着落）。';
+            return TT.i18n.t('err.noMatch', {
+                pos: TT.pos(match.unmatched[0][0], match.unmatched[0][1]),
+                n: match.unmatched.length
+            });
         }
 
         return null;
@@ -144,7 +150,8 @@
     /** 把一条规则反复执行到它自己推不出新东西，顺便收集它改动的格子 */
     function applyRuleUntilStable(state, rule) {
         const changed = [];
-        const notes = [];
+        let noteKey = null;
+        let vars = null;
 
         // 正常情况下几轮就停，这里的上限只是保险，避免死循环
         for (let guard = 0; guard < 200; guard++) {
@@ -155,14 +162,16 @@
             for (let i = 0; i < outcome.changed.length; i++) {
                 changed.push(outcome.changed[i]);
             }
-            if (outcome.note) {
-                notes.push(outcome.note);
+            if (outcome.noteKey && !noteKey) {
+                noteKey = outcome.noteKey;
+                vars = outcome.vars;
             }
         }
 
         return {
             changed: changed,
-            note: notes.length > 0 ? notes[0] : ''
+            noteKey: noteKey,
+            vars: vars
         };
     }
 
@@ -200,8 +209,9 @@
                     onStep({
                         kind: 'deduce',
                         ruleId: rules[i].id,
-                        title: rules[i].name,
-                        note: outcome.note,
+                        titleKey: rules[i].nameKey,
+                        noteKey: outcome.noteKey,
+                        noteVars: outcome.vars,
                         changed: outcome.changed,
                         cells: TT.snapshot(state)
                     });
@@ -266,8 +276,8 @@
         // 第 0 步：题目原样
         steps.push({
             kind: 'initial',
-            title: '初始局面',
-            note: '题目的树和提示数字已经填好，其余格子都是"未定"，等待推理。',
+            titleKey: 'step.initialTitle',
+            noteKey: 'step.initialNote',
             changed: [],
             cells: TT.snapshot(state)
         });
@@ -283,7 +293,7 @@
             return {
                 status: 'invalid',
                 steps: steps,
-                message: '题目自相矛盾：' + logicResult.error,
+                message: TT.i18n.t('step.invalidPrefix', { msg: logicResult.error }),
                 stats: { guesses: 0, byLogic: false }
             };
         }
@@ -291,8 +301,8 @@
         if (logicResult.status === 'solved') {
             pushStep({
                 kind: 'done',
-                title: '完成',
-                note: '全部靠推理得出，没有猜过任何一步。',
+                titleKey: 'step.doneTitle',
+                noteKey: 'step.doneNotePure',
                 changed: [],
                 cells: TT.snapshot(state)
             });
@@ -313,8 +323,7 @@
             return {
                 status: 'failed',
                 steps: steps,
-                message: '推理到第 ' + steps.length + ' 步就卡住了，试探搜索也超出了时间限制。' +
-                    '题目可能无解，也可能需要更长的搜索时间。',
+                message: TT.i18n.t('step.stalledTime', { n: steps.length }),
                 stats: { guesses: 0, byLogic: false }
             };
         }
@@ -323,8 +332,7 @@
             return {
                 status: 'failed',
                 steps: steps,
-                message: '推理到第 ' + steps.length + ' 步就卡住了，试探也找不到解，' +
-                    '这道题很可能是无解的，或者提示数字填错了。',
+                message: TT.i18n.t('step.stalledNoSolution', { n: steps.length }),
                 stats: { guesses: 0, byLogic: false }
             };
         }
@@ -338,10 +346,12 @@
                 // 这一格本来就已经放好帐篷了，这一步只是确认"它归这棵树"
                 pushStep({
                     kind: 'guess',
-                    title: '确认配对',
-                    note: '推理推不动了。先假设 ' + TT.pos(decision.tree[0], decision.tree[1]) +
-                        '的树配的是' + TT.pos(decision.cell[0], decision.cell[1]) +
-                        '这顶已经放好的帐篷，按这个假设继续往下推。',
+                    titleKey: 'step.confirmPair',
+                    noteKey: 'step.confirmPairNote',
+                    noteVars: {
+                        posTree: TT.pos(decision.tree[0], decision.tree[1]),
+                        posCell: TT.pos(decision.cell[0], decision.cell[1])
+                    },
                     changed: [],
                     depth: i + 1,
                     cells: TT.snapshot(state)
@@ -349,10 +359,12 @@
             } else {
                 pushStep({
                     kind: 'guess',
-                    title: '试探',
-                    note: '推理推不动了。先假设 ' + TT.pos(decision.tree[0], decision.tree[1]) +
-                        '的树把帐篷放在 ' + TT.pos(decision.cell[0], decision.cell[1]) +
-                        '，按这个假设继续往下推。',
+                    titleKey: 'step.guess',
+                    noteKey: 'step.guessNote',
+                    noteVars: {
+                        posTree: TT.pos(decision.tree[0], decision.tree[1]),
+                        posCell: TT.pos(decision.cell[0], decision.cell[1])
+                    },
                     changed: changed,
                     depth: i + 1,
                     cells: TT.snapshot(state)
@@ -384,16 +396,16 @@
             return {
                 status: 'failed',
                 steps: steps,
-                message: '找到了解，但回放步骤时出现了偏差，请反馈这个问题。',
+                message: TT.i18n.t('step.replayBug'),
                 stats: { guesses: search.decisions.length, byLogic: false }
             };
         }
 
         pushStep({
             kind: 'done',
-            title: '完成',
-            note: '解出来了：中间有 ' + search.decisions.length +
-                ' 步是靠试探的，其余都是推理得出的。',
+            titleKey: 'step.doneTitle',
+            noteKey: 'step.doneNoteSearch',
+            noteVars: { n: search.decisions.length },
             changed: [],
             cells: TT.snapshot(state)
         });

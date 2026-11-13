@@ -33,9 +33,9 @@
      * 公共小工具：几条规则都会用到，所以提到前面来
      * ------------------------------------------------------------------ */
 
-    // 坐标转成给人看的说法：第 3 行第 5 列
+    // 坐标转成给人看的说法：第 3 行第 5 列（随当前语言切换）
     function pos(r, c) {
-        return '第 ' + (r + 1) + ' 行第 ' + (c + 1) + ' 列';
+        return TT.i18n.t('pos.rowCol', { r: r + 1, c: c + 1 });
     }
     TT.pos = pos;
 
@@ -115,7 +115,7 @@
 
     const ruleQuotaZero = {
         id: 'quota-zero',
-        name: '配额已满',
+        nameKey: 'rule.quotaZero',
         apply: function (state) {
             const changed = [];
             const touched = [];
@@ -131,7 +131,7 @@
                     }
                 }
                 if (count > 0) {
-                    touched.push('第 ' + (r + 1) + ' 行');
+                    touched.push(TT.i18n.t('note.lineRow', { i: r + 1 }));
                 }
             }
 
@@ -146,7 +146,7 @@
                     }
                 }
                 if (count > 0) {
-                    touched.push('第 ' + (c + 1) + ' 列');
+                    touched.push(TT.i18n.t('note.lineCol', { i: c + 1 }));
                 }
             }
 
@@ -155,7 +155,8 @@
             }
             return {
                 changed: changed,
-                note: touched.join('、') + '的帐篷已经够数，剩下的空格全部是草地。'
+                noteKey: 'note.quotaZero',
+                vars: { cells: touched }
             };
         }
     };
@@ -169,7 +170,7 @@
 
     const ruleDeadLand = {
         id: 'dead-land',
-        name: '空地无树',
+        nameKey: 'rule.deadLand',
         apply: function (state) {
             const changed = [];
 
@@ -189,7 +190,8 @@
             }
             return {
                 changed: changed,
-                note: '有 ' + changed.length + ' 个格子上下左右都没有树，帐篷放在那儿配不出去，标成草地。'
+                noteKey: 'note.deadLand',
+                vars: { n: changed.length }
             };
         }
     };
@@ -203,7 +205,7 @@
 
     const ruleTentIsolation = {
         id: 'tent-isolation',
-        name: '帐篷周围不能放帐篷',
+        nameKey: 'rule.tentIsolation',
         apply: function (state) {
             const changed = [];
 
@@ -220,7 +222,8 @@
             }
             return {
                 changed: changed,
-                note: '帐篷之间不能相邻（斜着也不行），所以帐篷周围一圈共 ' + changed.length + ' 个空格是草地。'
+                noteKey: 'note.tentIsolation',
+                vars: { n: changed.length }
             };
         }
     };
@@ -235,7 +238,7 @@
 
     const ruleIsolatedTree = {
         id: 'isolated-tree',
-        name: '孤树补帐篷',
+        nameKey: 'rule.isolatedTree',
         apply: function (state) {
             const changed = [];
             const notes = [];
@@ -259,7 +262,10 @@
                     if (!toTent(state, only[0], only[1], changed)) {
                         continue;
                     }
-                    notes.push(pos(r, c) + '的树只剩这一个地方能配帐篷（' + pos(only[0], only[1]) + '）');
+                    notes.push(TT.i18n.t('note.isolatedTreeItem', {
+                        pos: pos(r, c),
+                        pos2: pos(only[0], only[1])
+                    }));
                     grassAroundTent(state, only[0], only[1], changed);
                 }
             }
@@ -269,9 +275,8 @@
             }
             return {
                 changed: changed,
-                note: notes.slice(0, 3).join('；') +
-                    (notes.length > 3 ? ' 等 ' + notes.length + ' 棵树' : '') +
-                    '，只能在唯一的位置放帐篷。'
+                noteKey: 'note.isolatedTree',
+                vars: { list: notes.slice(0, 3) }
             };
         }
     };
@@ -287,7 +292,7 @@
 
     const ruleLineTightFill = {
         id: 'line-tight-fill',
-        name: '空格刚好等于缺口',
+        nameKey: 'rule.lineTightFill',
         apply: function (state) {
             const changed = [];
             const notes = [];
@@ -344,8 +349,8 @@
                 }
 
                 if (placed > 0) {
-                    notes.push((isRow ? '第 ' + (index + 1) + ' 行' : '第 ' + (index + 1) + ' 列') +
-                        '还差 ' + need + ' 个帐篷，而能放帐篷的格子正好只剩 ' + need + ' 个');
+                    const itemKey = isRow ? 'note.lineTightItemRow' : 'note.lineTightItemCol';
+                    notes.push(TT.i18n.t(itemKey, { i: index + 1, n: need }));
                 }
             }
 
@@ -361,7 +366,8 @@
             }
             return {
                 changed: changed,
-                note: notes.slice(0, 3).join('；') + '，这些格子只能全放帐篷。'
+                noteKey: 'note.lineTightFill',
+                vars: { list: notes.slice(0, 3) }
             };
         }
     };
@@ -380,7 +386,7 @@
 
     const rulePackedLine = {
         id: 'packed-line',
-        name: '隔一个放一个',
+        nameKey: 'rule.packedLine',
         apply: function (state) {
             const changed = [];
             const notes = [];
@@ -426,8 +432,8 @@
                 }
 
                 if (placed > 0) {
-                    notes.push((isRow ? '第 ' + (index + 1) + ' 行' : '第 ' + (index + 1) + ' 列') +
-                        '最多只能放 ' + maxCount + ' 个帐篷，正好等于缺口，只能隔一个放一个');
+                    const itemKey = isRow ? 'note.packedItemRow' : 'note.packedItemCol';
+                    notes.push(TT.i18n.t(itemKey, { i: index + 1, n: maxCount }));
                 }
             }
 
@@ -443,7 +449,8 @@
             }
             return {
                 changed: changed,
-                note: notes.slice(0, 3).join('；') + '。'
+                noteKey: 'note.packedLine',
+                vars: { list: notes.slice(0, 3) }
             };
         }
     };
@@ -461,7 +468,7 @@
 
     const rulePairMatch = {
         id: 'pair-match',
-        name: '候选重合配对',
+        nameKey: 'rule.pairMatch',
         apply: function (state) {
             const changed = [];
             const groups = {};
@@ -514,8 +521,8 @@
             }
             return {
                 changed: changed,
-                note: '有 ' + notes.length + ' 个格子被' + '候选完全相同的树"分光"了，必然都是帐篷：' +
-                notes.join('、') + '。'
+                noteKey: 'note.pairMatch',
+                vars: { n: notes.length, list: notes }
             };
         }
     };
@@ -533,7 +540,7 @@
 
     const ruleBoxLine = {
         id: 'box-line',
-        name: '配额被占满',
+        nameKey: 'rule.boxLine',
         apply: function (state) {
             const changed = [];
             const notes = [];
@@ -622,8 +629,8 @@
                 }
 
                 if (grassed > 0) {
-                    notes.push((isRow ? '第 ' + (index + 1) + ' 行' : '第 ' + (index + 1) + ' 列') +
-                        '的 ' + mustCount + ' 个帐篷名额已经被 ' + mustCount + ' 棵树占满');
+                    const itemKey = isRow ? 'note.boxItemRow' : 'note.boxItemCol';
+                    notes.push(TT.i18n.t(itemKey, { i: index + 1, n: mustCount }));
                 }
             }
 
@@ -639,7 +646,8 @@
             }
             return {
                 changed: changed,
-                note: notes.slice(0, 3).join('；') + '，这一行其他格子都不可能是帐篷。'
+                noteKey: 'note.boxLine',
+                vars: { list: notes.slice(0, 3) }
             };
         }
     };
@@ -657,7 +665,7 @@
 
     const ruleOwnerFixed = {
         id: 'owner-fixed',
-        name: '帐篷的主人已确定',
+        nameKey: 'rule.ownerFixed',
         apply: function (state) {
             const changed = [];
             const notes = [];
@@ -709,8 +717,8 @@
             }
             return {
                 changed: changed,
-                note: '有 ' + notes.length + ' 个格子只挨着一棵"已经配好帐篷"的树，' +
-                    '它们不可能再当帐篷：' + notes.slice(0, 4).join('、') + '。'
+                noteKey: 'note.ownerFixed',
+                vars: { n: notes.length, list: notes.slice(0, 4) }
             };
         }
     };
@@ -729,7 +737,7 @@
 
     const ruleTrialElimination = {
         id: 'trial-elimination',
-        name: '试探排除',
+        nameKey: 'rule.trialElimination',
         apply: function (state) {
             const changed = [];
             const notes = [];
@@ -749,7 +757,7 @@
                     // 先试"这里放帐篷"
                     if (trialIsContradiction(state, r, c, CELL.TENT)) {
                         toGrass(state, r, c, changed);
-                        notes.push(pos(r, c) + '放帐篷会矛盾');
+                        notes.push(TT.i18n.t('note.trialTent', { pos: pos(r, c) }));
                         continue;
                     }
 
@@ -757,7 +765,7 @@
                     if (trialIsContradiction(state, r, c, CELL.GRASS)) {
                         toTent(state, r, c, changed);
                         grassAroundTent(state, r, c, changed);
-                        notes.push(pos(r, c) + '放草地会矛盾');
+                        notes.push(TT.i18n.t('note.trialGrass', { pos: pos(r, c) }));
                     }
                 }
             }
@@ -767,8 +775,8 @@
             }
             return {
                 changed: changed,
-                note: '试了几种可能，' + notes.slice(0, 3).join('；') +
-                    (notes.length > 3 ? ' 等 ' + notes.length + ' 处' : '') + '，直接定下来。'
+                noteKey: 'note.trial',
+                vars: { list: notes.slice(0, 3) }
             };
         }
     };

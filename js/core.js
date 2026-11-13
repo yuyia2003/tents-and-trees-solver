@@ -666,7 +666,7 @@ window.TT = window.TT || {};
 
         if (rows < TT.MIN_SIZE || rows > TT.MAX_SIZE ||
             cols < TT.MIN_SIZE || cols > TT.MAX_SIZE) {
-            return '棋盘尺寸必须在 ' + TT.MIN_SIZE + ' 到 ' + TT.MAX_SIZE + ' 之间。';
+            return TT.i18n.t('err.size', { min: TT.MIN_SIZE, max: TT.MAX_SIZE });
         }
 
         let treeCount = 0;
@@ -689,8 +689,7 @@ window.TT = window.TT || {};
                 continue; // 缺失数字：这一行数量不限，后面校验也跳过它
             }
             if (!Number.isInteger(hint) || hint < 0 || hint > cols) {
-                return '第 ' + (r + 1) + ' 行左边的提示必须是 0 到 ' + cols +
-                    ' 的整数，或者填「?」表示不知道。';
+                return TT.i18n.t('err.rowHint', { r: r + 1, c: cols });
             }
             totalRow += hint;
         }
@@ -702,8 +701,7 @@ window.TT = window.TT || {};
                 continue;
             }
             if (!Number.isInteger(hint) || hint < 0 || hint > rows) {
-                return '第 ' + (c + 1) + ' 列上面的提示必须是 0 到 ' + rows +
-                    ' 的整数，或者填「?」表示不知道。';
+                return TT.i18n.t('err.colHint', { c: c + 1, r: rows });
             }
             totalCol += hint;
         }
@@ -715,13 +713,11 @@ window.TT = window.TT || {};
         }
 
         if (totalRow !== totalCol) {
-            return '左边提示合计 ' + totalRow + '，上面提示合计 ' + totalCol +
-                '，两者必须相等（每个帐篷同时被一行和一列统计）。';
+            return TT.i18n.t('err.hintSum', { a: totalRow, b: totalCol });
         }
 
         if (treeCount !== totalRow) {
-            return '棋盘上放了 ' + treeCount + ' 棵树，但提示合计是 ' + totalRow +
-                '。每棵树对应一个帐篷，两个数字必须相同。';
+            return TT.i18n.t('err.treeCount', { t: treeCount, h: totalRow });
         }
 
         return null;
